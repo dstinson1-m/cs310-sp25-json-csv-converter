@@ -2,6 +2,8 @@ package edu.jsu.mcis.cs310;
 
 import com.github.cliftonlabs.json_simple.*;
 import com.opencsv.*;
+import java.io.IOException;
+import java.io.StringReader;
 
 public class Converter {
     
@@ -76,12 +78,59 @@ public class Converter {
         
         String result = "{}"; // default return value; replace later!
         
-        try {
+        try (CSVReader reader = new CSVReader(new StringReader(csvString))) {
         
             // INSERT YOUR CODE HERE
             
-        }
-        catch (Exception e) {
+            //Read headers and prepare the lists for json fields
+            String[] headers = reader.readNext();
+            JsonArray prodNums = new JsonArray();
+            JsonArray colHeadings = new JsonArray();
+            JsonArray data = new JsonArray();
+            
+           //Populate column headings
+           for (String header : headers) {
+               colHeadings.add(header);
+           }
+           
+           //Read through the csv rows
+           String[] row;
+           while ((row = reader.readNext()) != null) {
+               if (row.length ==0) {
+                   continue;
+               }
+               
+               prodNums.add(row[0]);
+               
+               //Preppare row data
+               JsonArray rowData = new JsonArray();
+               
+               rowData.add(row[1].trim());
+               rowData.add(Integer.parseInt(row[2].trim()));
+               rowData.add(Integer.parseInt(row[3].trim()));
+               
+               //Process fields as strings
+               for (int i = 4; i < row.length; i++) {
+                   rowData.add(row[i].trim());
+               }
+               
+               //Add row data to overall data array
+               data.add(rowData);
+           }
+            
+           //Creates json object
+            JsonObject json = new JsonObject();
+            json.put("ProdNums", prodNums);
+            json.put("ColHeadings", colHeadings);
+            json.put("Data", data);
+            
+            //Serialize the json object to a string
+            result = json.toJson();
+            
+        }catch (IOException e){
+            e.printStackTrace();
+        
+        }catch (Exception e) {
             e.printStackTrace();
         }
         
@@ -97,6 +146,47 @@ public class Converter {
         try {
             
             // INSERT YOUR CODE HERE
+            
+            //Parse the input json string into a jsonobject
+            JsonObject json = (JsonObject) Jsoner.deserialize(jsonString);
+            JsonArray prodNums = (JsonArray) json.get("ProdNums");
+            JsonArray colHeadings = (JsonArray) json.get("ColHeadings");
+            JsonArray data = (JsonArray) json.get("Data");
+            
+            StringBuilder csvBuilder = new StringBuilder();
+            
+            //Add column headings to csv
+            for (int i = 0; i < colHeadings.size(); i++) {
+                csvBuilder.append("\"").append(colHeadings.get(i)).append("\"");
+                if (i < colHeadings.size() - 1) {
+                    csvBuilder.append(",");
+                }
+            }
+            csvBuilder.append("\n");
+            
+            //Add row of data to the csv
+            for (int i = 0; i < data.size(); i++) {
+                JsonArray rowData = (JsonArray) data.get(i);
+                
+                //add production number as the first column
+                csvBuilder.append("\"").append(prodNums.get(i)).append("\"");
+                
+                //Add the row data
+                for (int j = 0; j < rowData.size(); j++) {
+                    String value = rowData.get(j).toString();
+                    
+                    if (j == 2 && value.length() == 1) {
+                        value = "0" + value;
+                    }
+                    
+                    csvBuilder.append(",\"").append(value).append("\"");
+                }
+                csvBuilder.append("\n");
+                
+            }
+            
+            //Convert stringbuilder content to a string
+            result = csvBuilder.toString();
             
         }
         catch (Exception e) {
